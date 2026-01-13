@@ -1,0 +1,35 @@
+{
+    "info": {
+        "successful_install_title": "Installation Successful!",
+        "successful_install_description": "The Harness Was Installed Successfully!",
+        "successful_removal_title": "Removal Successful!",
+        "successful_removal_description": "The Harness Was Removed Successfully!",
+        "progress_name": "install_harness",
+        "progress_label": "Installing Harness...",
+        "uninstall_progress_name": "uninstall_harness",
+        "uninstall_progress_label": "Uninstalling Harness..."
+    },
+
+    "error": {
+        "unsuccessful_install_title": "Installation Unsuccessful!",
+        "unsuccessful_install_description": "You Cannot Install A Harness In A Vehicle You Do Not Own!",
+        "installlation_error_title": "Installation Error!",
+        "installation_error_description": "You Already Have A Harness Installed!",
+        "unsuccessful_removal_title": "Removal Unsuccessful!",
+        "unsuccessful_removal_description": "You Cannot Remove A Harness From A Vehicle You Do Not Own!",
+        "unsuccessful_mechanic_removal_title": "Mechanic Removal Unsuccessful!",
+        "unsuccessful_mechanic_removal_description": "You Cannot Remove A Harness From A Vehicle The Player Does Not Own!",
+        "harness_broke_title": "Broken Harness!",
+        "harness_broke_description": "Your Harness Broke!",
+        "cancel_installation_title": "Installation Cancelled!",
+        "cancel_installation_description": "The Harness Installation Was Cancelled!",
+        "driver_seat_error_title": "Vehicle Seat Error!",
+        "driver_seat_error_description": "You Must Be In The Driver's Seat To Install The Harness!",
+        "cancel_removal_title": "Removal Cancelled!",
+        "cancel_removal_description": "The Harness Removal Was Cancelled!",
+        "removal_error_title": "Removal Error!",
+        "removal_error_description": "You Do Not Have A Harness Installed In This Vehicle!",
+        "driver_seat_removal_error_title": "Vehicle Seat Error!",
+        "driver_seat_removal_error_description": "You Must Be In The Driver's Seat To Uninstall The Harness!"
+    }
+}
