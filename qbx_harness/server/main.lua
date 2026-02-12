@@ -1,140 +1,119 @@
-local harnessVehicles = {}
-
--- Load harness data on server start
-CreateThread(function()
-    Wait(1000)
-    
-    local result = MySQL.query.await('SELECT * FROM vehicle_harnesses WHERE installed = 1')
-    
-    if result then
-        for _, data in ipairs(result) do
-            harnessVehicles[data.plate] = true
-        end
+-- VEHICLE OWNERSHIP CHECK
+local function isVehicleOwned(plate)
+    if Config.npFakePlate then
+        local hasFakePlate = exports['np-fakeplates']:getPlateFromFakePlate(plate)
+        if hasFakePlate then plate = hasFakePlate end
+        Wait(100)
     end
-    
-    print('[harness] Loaded ' .. #result .. ' harness installations')
-end)
 
--- Check if vehicle has harness
-lib.callback.register('harness:server:checkHarness', function(source, plate)
-    if not plate then return false end
-    return harnessVehicles[plate] == true
-end)
+    local result = MySQL.scalar.await(
+        'SELECT plate FROM player_vehicles WHERE plate = ?',
+        { plate }
+    )
 
--- Install harness to vehicle
-RegisterNetEvent('harness:server:installHarness', function(plate, vehicleNetId)
+    return result and true or false
+end
+
+
+-- HARNESS CHECK
+local function hasHarness(plate)
+    if Config.npFakePlate then
+        local hasFakePlate = exports['np-fakeplates']:getPlateFromFakePlate(plate)
+        if hasFakePlate then plate = hasFakePlate end
+        Wait(100)
+    end
+
+    local result = MySQL.scalar.await(
+        'SELECT harness FROM player_vehicles WHERE plate = ?',
+        { plate }
+    )
+
+    return result and true or false
+end
+
+
+-- ATTACH HARNESS
+RegisterNetEvent('qbx_harness:server:attachHarness', function(plate, ItemData)
     local src = source
-    
-    if not plate then
-        lib.notify(src, {
-            title = 'Harness',
-            description = 'Invalid vehicle!',
-            type = 'error'
-        })
-        return
+    if not src or not plate then return end
+
+    if not isVehicleOwned(plate) then
+        return TriggerClientEvent('seatbelt:client:UseHarness', src, ItemData, true)
     end
-    
-    -- Check if player has harness
-    local hasHarness = exports.ox_inventory:Search(src, 'count', 'harness') or 0
-    
-    if hasHarness < 1 then
-        lib.notify(src, {
-            title = 'Harness',
-            description = 'You don\'t have a harness!',
-            type = 'error'
-        })
-        return
+
+    if Config.UninstallHarnessWithItem and hasHarness(plate) then
+        return TriggerClientEvent('qbx_harness:client:installHarness', src, plate, 'uninstall')
     end
-    
-    -- Check if vehicle already has harness
-    if harnessVehicles[plate] then
-        lib.notify(src, {
-            title = 'Harness',
-            description = 'This vehicle already has a harness!',
-            type = 'error'
-        })
-        return
-    end
-    
-    -- Remove harness from player
-    local success = exports.ox_inventory:RemoveItem(src, 'harness', 1)
-    
-    if not success then
-        lib.notify(src, {
-            title = 'Harness',
-            description = 'Failed to remove harness!',
-            type = 'error'
-        })
-        return
-    end
-    
-    -- Save to database
-    MySQL.insert('INSERT INTO vehicle_harnesses (plate, installed) VALUES (?, 1) ON DUPLICATE KEY UPDATE installed = 1', {plate}, function()
-        harnessVehicles[plate] = true
-        
-        -- Notify client
-        TriggerClientEvent('harness:client:harnessInstalled', src, vehicleNetId)
-        
-        lib.notify(src, {
-            title = 'Harness',
-            description = 'Harness installed successfully!',
-            type = 'success'
-        })
-    end)
+
+    TriggerClientEvent('qbx_harness:client:installHarness', src, plate, 'install')
 end)
 
--- Remove harness from vehicle
-RegisterNetEvent('harness:server:removeHarness', function(plate)
+
+-- INSTALL / UNINSTALL
+RegisterNetEvent('qbx_harness:server:installHarness', function(plate, action)
     local src = source
-    
-    if not plate then return end
-    
-    -- Check if vehicle has harness
-    if not harnessVehicles[plate] then
-        lib.notify(src, {
-            title = 'Harness',
-            description = 'This vehicle doesn\'t have a harness!',
-            type = 'error'
-        })
-        return
+    if not src or not plate or not action then return end
+
+    if Config.npFakePlate then
+        local hasFakePlate = exports['np-fakeplates']:getPlateFromFakePlate(plate)
+        if hasFakePlate then plate = hasFakePlate end
+        Wait(100)
     end
-    
-    -- Add harness back to player
-    local canCarry = exports.ox_inventory:CanCarryItem(src, 'harness', 1)
-    
-    if canCarry then
-        exports.ox_inventory:AddItem(src, 'harness', 1)
-        
-        -- Remove from database
-        MySQL.update('DELETE FROM vehicle_harnesses WHERE plate = ?', {plate}, function()
-            harnessVehicles[plate] = nil
-            
-            lib.notify(src, {
-                title = 'Harness',
-                description = 'Harness removed from vehicle!',
-                type = 'success'
+
+    if action == 'install' then
+        exports.ox_inventory:RemoveItem(src, Config.Harness, 1)
+
+        MySQL.update(
+            'UPDATE player_vehicles SET harness = ? WHERE plate = ?',
+            { true, plate }
+        )
+
+    elseif action == 'uninstall' then
+        if not hasHarness(plate) then
+            return TriggerClientEvent('ox_lib:notify', src, {
+                description = Lang:t("error.no_harness"),
+                type = "error"
             })
-        end)
-    else
-        lib.notify(src, {
-            title = 'Harness',
-            description = 'Not enough inventory space!',
-            type = 'error'
-        })
+        end
+
+        exports.ox_inventory:AddItem(src, Config.Harness, 1)
+
+        -- ?? FIXED: write 0 instead of NULL
+        MySQL.update(
+            'UPDATE player_vehicles SET harness = ? WHERE plate = ?',
+            { 0, plate }
+        )
     end
 end)
 
--- Get all harness data
-lib.callback.register('harness:server:getAllHarnesses', function(source)
-    return harnessVehicles
-end)
 
--- Register usable item
-exports.ox_inventory:registerHook('useItem', function(payload)
-    if payload.item.name == 'harness' then
-        TriggerClientEvent('harness:client:useHarness', payload.source)
-        return false -- Prevent default use
+-- FORCE UNINSTALL (DB ONLY)
+RegisterNetEvent('qbx_harness:server:uninstallHarness', function(plate)
+    local src = source
+    if not src or not plate then return end
+
+    if Config.npFakePlate then
+        local hasFakePlate = exports['np-fakeplates']:getPlateFromFakePlate(plate)
+        if hasFakePlate then plate = hasFakePlate end
+        Wait(100)
     end
+
+    -- ?? FIXED: write 0 instead of NULL
+    MySQL.update(
+        'UPDATE player_vehicles SET harness = ? WHERE plate = ?',
+        { 0, plate }
+    )
 end)
 
-print('[harness] Server script loaded')
+
+-- TOGGLE BELT
+RegisterNetEvent('qbx_harness:server:toggleBelt', function(plate, ItemData)
+    local src = source
+    if not src then return end
+
+    if not hasHarness(plate) then
+        return TriggerClientEvent('seatbelt:client:UseSeatbelt', src)
+    end
+
+    TriggerClientEvent('seatbelt:client:UseHarness', src, ItemData, false)
+end)
