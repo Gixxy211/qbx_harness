@@ -1,30 +1,23 @@
 fx_version 'cerulean'
-use_experimental_fxv2_oal 'yes'
-lua54 'yes'
 game 'gta5'
 
-name 'qbx_harness'
-author 'Gixxy'
-version '2.1.1'
+name "np Harness"
+author "np Development"
+version "1.1"
+
+lua54 'yes'
 
 shared_scripts {
     '@ox_lib/init.lua',
-    'shared/config.lua'
+    'locales/*.lua',
+    'shared/*.lua',
 }
 
 client_scripts {
-    'client/main.lua'
+    'client/*.lua',
 }
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
-    'server/main.lua'
+    'server/*.lua',
 }
-
-dependency {
-    'qbx_core',
-    'ox_lib',
-    'oxmysql',
-    'ox_inventory'
-}
-
